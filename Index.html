@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Simulasi e-Voting Pilkades</title>
+
+  <!-- Pustaka jsQR Native Scanner -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      overflow-x: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    /* HEADER */
+    header {
+      width: 100%;
+      background: linear-gradient(to right, #cc0000, #990000);
+      color: white;
+      text-align: center;
+      padding: 6px 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+    }
+
+    header p {
+      font-size: 9px;
+      opacity: 0.95;
+      line-height: 1;
+    }
+
+    /* CONTAINER UTAMA LAYAR */
+    .screen {
+      display: none;
+      width: 100%;
+      max-width: 1000px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 8px;
+    }
+
+    .screen.active { 
+      display: flex; 
+    }
+
+    /* LAYAR SCANNER QR CODE FULLSCREEN */
+    #screen-scan {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    #screen-scan.hidden { display: none !important; }
+
+    /* Video Background Fullscreen */
+    #video-element {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+
+    /* Background Putih Memanjang di Atas untuk Teks Arahan */
+    .scan-header-overlay {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      padding: 12px 15px;
+      text-align: center;
+      background-color: #ffffff;
+      color: #000000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .scan-header-overlay h2 {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 2px;
+      color: #000000;
+    }
+
+    .scan-header-overlay p {
+      font-size: 12px;
+      font-weight: 600;
+      color: #333333;
+    }
+
+    /* Target Frame Pemindaian Hijau */
+    .scan-frame-wrapper {
+      position: relative;
+      z-index: 10;
+      width: 240px;
+      height: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Garis Sudut Hijau */
+    .scan-corner {
+      position: absolute;
+      width: 35px;
+      height: 35px;
+      border-color: #25d366;
+      border-style: solid;
+    }
+
+    .top-left {
+      top: 0;
+      left: 0;
+      border-width: 4px 0 0 4px;
+      border-top-left-radius: 8px;
+    }
+
+    .top-right {
+      top: 0;
+      right: 0;
+      border-width: 4px 4px 0 0;
+      border-top-right-radius: 8px;
+    }
+
+    .bottom-left {
+      bottom: 0;
+      left: 0;
+      border-width: 0 0 4px 4px;
+      border-bottom-left-radius: 8px;
+    }
+
+    .bottom-right {
+      bottom: 0;
+      right: 0;
+      border-width: 0 4px 4px 0;
+      border-bottom-right-radius: 8px;
+    }
+
+    /* Status Scan / Pesan Bawah */
+    .scan-footer-overlay {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      padding: 15px;
+      text-align: center;
+      background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0));
+      color: white;
+    }
+
+    .scan-status {
+      font-size: 12px;
+      font-weight: 600;
+      color: #ffffff;
+      min-height: 18px;
+    }
+
+    .scan-status.error { color: #ff4d4d; }
+
+    /* LAYAR VOTE / PEMILIHAN */
+    .candidates-container {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 6px;
+      width: 100%;
+      margin-bottom: 6px;
+    }
+
+    .candidate-card {
+      position: relative;
+      background: white;
+      border: 3px solid #0052cc;
+      border-radius: 6px;
+      flex: 1;
+      max-width: 23%;
+      height: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 2px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      overflow: hidden;
+    }
+
+    .candidate-card.selected {
+      border: 5px solid #28a745 !important;
+      background-color: #e8f8ec;
+      box-shadow: 0 0 10px rgba(40, 167, 69, 0.6);
+    }
+
+    /* EFEK BEKAS COBLOSAN PAKU DI TENGAH FOTO */
+    .candidate-card.selected::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 36px;
+      height: 36px;
+      background: radial-gradient(circle, #000000 30%, #3a220b 60%, transparent 80%);
+      border: 2px dashed #ff1100;
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.8), inset 0 0 6px #000;
+      z-index: 20;
+    }
+
+    .candidate-img-wrapper {
+      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .candidate-img-wrapper img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    /* BARIS TOMBOL AKSI LAYAR PEMILIHAN */
+    #screen-vote .action-bar {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Tombol PILIH KANDIDAT INI memanjang penuh dari ujung kiri ke kanan */
+    #screen-vote .btn-blue {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    /* LAYAR KONFIRMASI */
+    #screen-confirm {
+      display: none;
+      width: 100%;
+      max-width: 1000px;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 8px;
+    }
+
+    #screen-confirm.active { 
+      display: flex; 
+    }
+
+    /* TEKS KONFIRMASI DI POJOK KIRI ATAS */
+    .confirm-header-text {
+      width: 100%;
+      text-align: left;
+      margin-bottom: 6px;
+      padding-left: 2px;
+    }
+
+    .confirm-header-text h3 {
+      font-size: 15px;
+      font-weight: 900;
+      color: #1a2a3a;
+      text-transform: uppercase;
+    }
+
+    .confirm-header-text p {
+      font-size: 11px;
+      font-weight: 700;
+      color: #333;
+    }
+
+    /* CONTAINER KONFIRMASI */
+    #confirm-container {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 10px;
+      background: #ffffff;
+      border: 2px solid #ccc;
+      border-radius: 6px;
+      padding: 6px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    #confirm-container .candidate-card {
+      border: 2px solid #0052cc !important;
+      flex: 0 1 140px;
+      max-width: 35%;
+      height: auto;
+      padding: 2px;
+    }
+
+    /* BARIS TOMBOL AKSI UMUM */
+    .action-bar {
+      width: 100%;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .btn {
+      flex: 1;
+      max-width: 400px;
+      height: 42px;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 900;
+      color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .btn-blue { background-color: #0052cc; }
+    .btn-danger { background-color: #d93025; }
+
+    /* LAYAR SELESAI */
+    .empty-msg {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 900;
+      color: #155724;
+      background-color: #d4edda;
+      border-radius: 8px;
+      text-align: center;
+      padding: 20px 10px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LAYAR SCAN QR CODE FULLSCREEN -->
+  <div id="screen-scan">
+    <video id="video-element" playsinline muted></video>
+
+    <!-- Header Teks Atas dengan Background Putih Memanjang -->
+    <div class="scan-header-overlay">
+      <h2>Arahkan Kamera ke QR Code</h2>
+      <p>Pastikan QR Code Terlihat Jelas dan dalam Frame</p>
+    </div>
+
+    <!-- Frame Hijau Pemindaian -->
+    <div class="scan-frame-wrapper">
+      <div class="scan-corner top-left"></div>
+      <div class="scan-corner top-right"></div>
+      <div class="scan-corner bottom-left"></div>
+      <div class="scan-corner bottom-right"></div>
+    </div>
+
+    <!-- Status Pemindaian Bawah -->
+    <div class="scan-footer-overlay">
+      <div id="scan-status" class="scan-status">Menghubungkan Kamera...</div>
+    </div>
+  </div>
+
+  <header id="main-header" style="display:none;">
+    <h1>SURAT SUARA E-VOTING PILKADES</h1>
+    <p>SIMULASI PEMILIHAN</p>
+  </header>
+
+  <!-- LAYAR PILIH KANDIDAT -->
+  <div id="screen-vote" class="screen">
+    <div class="candidates-container">
+      <div class="candidate-card" onclick="toggleSelect(1)">
+        <div class="candidate-img-wrapper"><img src="https://lh3.googleusercontent.com/d/1AGxdgJBdQ70qkPM0dvTB6PlJWHRl2GcS"></div>
+      </div>
+      <div class="candidate-card" onclick="toggleSelect(2)">
+        <div class="candidate-img-wrapper"><img src="https://lh3.googleusercontent.com/d/1vK3xhMIvtQC-LOyAf4jt6P_1JN_T9iMt"></div>
+      </div>
+      <div class="candidate-card" onclick="toggleSelect(3)">
+        <div class="candidate-img-wrapper"><img src="https://lh3.googleusercontent.com/d/19FmWS2811ougBl2dtWtmQwF9FFFKyDwn"></div>
+      </div>
+      <div class="candidate-card" onclick="toggleSelect(4)">
+        <div class="candidate-img-wrapper"><img src="https://lh3.googleusercontent.com/d/1-wi1yIcUUBu7knC3UkrjB_OF4rvWRyBD"></div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-blue" onclick="goToConfirm()">PILIH KANDIDAT INI</button>
+    </div>
+  </div>
+
+  <!-- LAYAR KONFIRMASI -->
+  <div id="screen-confirm">
+    <div class="confirm-header-text">
+      <h3>Konfirmasi Pemilihan</h3>
+      <p>Apakah Anda yakin dengan pilihan kandidat ini?</p>
+    </div>
+    
+    <div id="confirm-container"></div>
+
+    <div class="action-bar">
+      <button class="btn btn-danger" onclick="resetAndBack()">ULANGI</button>
+      <button class="btn btn-blue" onclick="finishVote()">PILIH</button>
+    </div>
+  </div>
+
+  <!-- LAYAR SELESAI -->
+  <div id="screen-thanks" class="screen">
+    <div class="empty-msg">
+      <h2>TERIMA KASIH!</h2>
+      <p style="margin-top: 6px;">Pilihan Anda Telah Berhasil Disimpan.</p>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-blue" style="max-width:100%; width:100%;" onclick="resetToScan()">KEMBALI KE LAYAR SCAN</button>
+    </div>
+  </div>
+
+  <script>
+    const singleUseQrCodes = [
+      "pemsimpilkadessmg1", "pemsimpilkadessmg2", "pemsimpilkadessmg3",
+      "pemsimpilkadessmg4", "pemsimpilkadessmg5", "pemsimpilkadessmg6",
+      "pemsimpilkadessmg7", "pemsimpilkadessmg8", "pemsimpilkadessmg9", "pemsimpilkadessmg10"
+    ];
+    const unlimitedQrCodes = ["TESTER-REPEATED", "PANITIA-DEMO"];
+    let usedQrCodes = new Set();
+    let currentActiveUser = "";
+
+    const candidatesData = {
+      1: { img: "https://lh3.googleusercontent.com/d/1AGxdgJBdQ70qkPM0dvTB6PlJWHRl2GcS" },
+      2: { img: "https://lh3.googleusercontent.com/d/1vK3xhMIvtQC-LOyAf4jt6P_1JN_T9iMt" },
+      3: { img: "https://lh3.googleusercontent.com/d/19FmWS2811ougBl2dtWtmQwF9FFFKyDwn" },
+      4: { img: "https://lh3.googleusercontent.com/d/1-wi1yIcUUBu7knC3UkrjB_OF4rvWRyBD" }
+    };
+    
+    let selectedCandidates = new Set();
+
+    let video = document.getElementById("video-element");
+    let canvasElement = document.createElement("canvas");
+    let canvas = canvasElement.getContext("2d");
+    let scanning = false;
+
+    function startCamera() {
+      scanning = true;
+      const status = document.getElementById("scan-status");
+      status.className = "scan-status";
+      status.innerText = "Mencari Kamera...";
+
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(function(stream) {
+          video.srcObject = stream;
+          video.setAttribute("playsinline", true);
+          video.play();
+          status.innerText = "Siap memindai QR Code...";
+          requestAnimationFrame(tick);
+        })
+        .catch(function(err) {
+          navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+              video.srcObject = stream;
+              video.setAttribute("playsinline", true);
+              video.play();
+              status.innerText = "Siap memindai QR Code...";
+              requestAnimationFrame(tick);
+            })
+            .catch(function(err2) {
+              status.className = "scan-status error";
+              status.innerText = "❌ Akses kamera ditolak / tidak ditemukan.";
+            });
+        });
+    }
+
+    function stopCamera() {
+      scanning = false;
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    function tick() {
+      if (!scanning) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvasElement.height = video.videoHeight;
+        canvasElement.width = video.videoWidth;
+        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+        let imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+        
+        if (typeof jsQR !== "undefined") {
+          let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+          if (code) {
+            handleQrDetected(code.data);
+            return;
+          }
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function handleQrDetected(qrText) {
+      qrText = qrText.trim();
+      
+      if (usedQrCodes.has(qrText) && !unlimitedQrCodes.includes(qrText)) {
+        alert("❌ QR Code (" + qrText + ") SUDAH DIGUNAKAN UNTUK MEMILIH!");
+        return;
+      }
+
+      if (singleUseQrCodes.includes(qrText) || unlimitedQrCodes.includes(qrText)) {
+        currentActiveUser = qrText;
+        stopCamera();
+        document.getElementById("screen-scan").classList.add("hidden");
+        document.getElementById("main-header").style.display = "block";
+        document.getElementById("screen-vote").classList.add("active");
+      } else {
+        alert("❌ QR Code Tidak Terdaftar! (" + qrText + ")");
+      }
+    }
+
+    function toggleSelect(id) {
+      const cards = document.querySelectorAll('#screen-vote .candidate-card');
+      const card = cards[id - 1];
+
+      if (selectedCandidates.has(id)) {
+        selectedCandidates.delete(id);
+        card.classList.remove('selected');
+      } else {
+        selectedCandidates.add(id);
+        card.classList.add('selected');
+      }
+    }
+
+    function goToConfirm() {
+      if (selectedCandidates.size === 0) {
+        alert("Pilih setidaknya 1 kandidat terlebih dahulu!");
+        return;
+      }
+      const container = document.getElementById("confirm-container");
+      container.innerHTML = "";
+      
+      Array.from(selectedCandidates).sort().forEach(id => {
+        container.innerHTML += `
+          <div class="candidate-card selected">
+            <div class="candidate-img-wrapper">
+              <img src="${candidatesData[id].img}">
+            </div>
+          </div>`;
+      });
+
+      // Sembunyikan header merah di layar konfirmasi
+      document.getElementById("main-header").style.display = "none";
+
+      document.getElementById("screen-vote").classList.remove("active");
+      document.getElementById("screen-confirm").classList.add("active");
+    }
+
+    function resetAndBack() {
+      selectedCandidates.clear();
+      document.querySelectorAll('#screen-vote .candidate-card').forEach(c => c.classList.remove('selected'));
+      
+      // Tampilkan kembali header merah saat kembali ke layar pemilihan
+      document.getElementById("main-header").style.display = "block";
+
+      document.getElementById("screen-confirm").classList.remove("active");
+      document.getElementById("screen-vote").classList.active = false;
+      document.getElementById("screen-confirm").classList.remove("active");
+      document.getElementById("screen-vote").classList.add("active");
+    }
+
+    function finishVote() {
+      if (currentActiveUser && !unlimitedQrCodes.includes(currentActiveUser)) {
+        usedQrCodes.add(currentActiveUser);
+      }
+      document.getElementById("screen-confirm").classList.remove("active");
+      document.getElementById("screen-thanks").classList.add("active");
+    }
+
+    function resetToScan() {
+      selectedCandidates.clear();
+      currentActiveUser = "";
+      document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('selected'));
+      
+      document.getElementById("screen-thanks").classList.remove("active");
+      document.getElementById("main-header").style.display = "none";
+      document.getElementById("screen-scan").classList.remove("hidden");
+      
+      startCamera();
+    }
+
+    window.onload = startCamera;
+  </script>
+</body>
+</html>
