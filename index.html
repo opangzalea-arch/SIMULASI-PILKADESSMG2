@@ -229,15 +229,15 @@
       box-shadow: 0 0 10px rgba(40, 167, 69, 0.6);
     }
 
-    /* EFEK BEKAS COBLOSAN PAKU DI TENGAH FOTO */
+    /* EFEK BEKAS COBLOSAN PAKU DI AREA DADA (75% DARI ATAS) */
     .candidate-card.selected::after {
       content: '';
       position: absolute;
-      top: 50%;
+      top: 72%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       background: radial-gradient(circle, #000000 30%, #3a220b 60%, transparent 80%);
       border: 2px dashed #ff1100;
       border-radius: 50%;
@@ -329,6 +329,11 @@
       padding: 2px;
     }
 
+    /* MENGHILANGKAN EFEK COBLOSAN PAKU PADA LAYAR KONFIRMASI */
+    #confirm-container .candidate-card::after {
+      display: none !important;
+    }
+
     .action-bar {
       width: 100%;
       display: flex;
@@ -368,10 +373,32 @@
       font-weight: 900;
       color: #155724;
       background-color: #d4edda;
+      border: 2px solid #c3e6cb;
       border-radius: 8px;
       text-align: center;
-      padding: 20px 10px;
+      padding: 24px 16px;
       margin-bottom: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    .empty-msg.warning-msg {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+
+    .msg-details {
+      margin-top: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    .candidate-name {
+      color: #0052cc;
+      font-weight: 900;
+      font-size: 16px;
+      text-transform: uppercase;
     }
   </style>
 </head>
@@ -442,9 +469,9 @@
 
   <!-- LAYAR SELESAI -->
   <div id="screen-thanks" class="screen">
-    <div class="empty-msg">
+    <div id="thanks-msg-box" class="empty-msg">
       <h2>TERIMA KASIH!</h2>
-      <p style="margin-top: 6px;">Pilihan Anda Telah Berhasil Disimpan.</p>
+      <div id="thanks-text" class="msg-details"></div>
     </div>
     <div class="action-bar">
       <button class="btn btn-blue" style="max-width:100%; width:100%;" onclick="resetToScan()">KEMBALI KE LAYAR SCAN</button>
@@ -601,6 +628,18 @@
       if (currentActiveUser && !unlimitedQrCodes.includes(currentActiveUser)) {
         usedQrCodes.add(currentActiveUser);
       }
+
+      const msgBox = document.getElementById("thanks-msg-box");
+      const textContainer = document.getElementById("thanks-text");
+
+      if (selectedCandidates.size === 1) {
+        msgBox.className = "empty-msg";
+        textContainer.innerHTML = `Pilihan yang tepat, Anda telah memilih <span class="candidate-name">HAJI ALWI JABARUDIN</span> calon pemimpin yang luar biasa demi kemajuan Desa Sumurgede.`;
+      } else {
+        msgBox.className = "empty-msg warning-msg";
+        textContainer.innerHTML = `Anda telah salah memilih lebih dari satu.`;
+      }
+
       document.getElementById("screen-confirm").classList.remove("active");
       document.getElementById("screen-thanks").classList.add("active");
     }
