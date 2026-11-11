@@ -206,7 +206,6 @@
     }
 
     .candidate-card {
-      position: relative;
       background: white;
       border: 3px solid #0052cc;
       border-radius: 6px;
@@ -227,22 +226,6 @@
       border: 5px solid #28a745 !important;
       background-color: #e8f8ec;
       box-shadow: 0 0 10px rgba(40, 167, 69, 0.6);
-    }
-
-    /* EFEK BEKAS COBLOSAN PAKU DI AREA DADA (75% DARI ATAS) */
-    .candidate-card.selected::after {
-      content: '';
-      position: absolute;
-      top: 72%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 34px;
-      height: 34px;
-      background: radial-gradient(circle, #000000 30%, #3a220b 60%, transparent 80%);
-      border: 2px dashed #ff1100;
-      border-radius: 50%;
-      box-shadow: 0 0 8px rgba(0, 0, 0, 0.8), inset 0 0 6px #000;
-      z-index: 20;
     }
 
     .candidate-img-wrapper {
@@ -266,6 +249,7 @@
       justify-content: center;
     }
 
+    /* Tombol PILIH KANDIDAT INI memanjang penuh dari ujung kiri ke kanan */
     #screen-vote .btn-blue {
       width: 100%;
       max-width: 100%;
@@ -286,6 +270,7 @@
       display: flex; 
     }
 
+    /* TEKS KONFIRMASI DI POJOK KIRI ATAS */
     .confirm-header-text {
       width: 100%;
       text-align: left;
@@ -306,6 +291,7 @@
       color: #333;
     }
 
+    /* CONTAINER KONFIRMASI */
     #confirm-container {
       width: 100%;
       display: flex;
@@ -329,11 +315,7 @@
       padding: 2px;
     }
 
-    /* MENGHILANGKAN EFEK COBLOSAN PAKU PADA LAYAR KONFIRMASI */
-    #confirm-container .candidate-card::after {
-      display: none !important;
-    }
-
+    /* BARIS TOMBOL AKSI UMUM */
     .action-bar {
       width: 100%;
       display: flex;
@@ -373,32 +355,10 @@
       font-weight: 900;
       color: #155724;
       background-color: #d4edda;
-      border: 2px solid #c3e6cb;
       border-radius: 8px;
       text-align: center;
-      padding: 24px 16px;
+      padding: 20px 10px;
       margin-bottom: 12px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-
-    .empty-msg.warning-msg {
-      color: #721c24;
-      background-color: #f8d7da;
-      border-color: #f5c6cb;
-    }
-
-    .msg-details {
-      margin-top: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      line-height: 1.5;
-    }
-
-    .candidate-name {
-      color: #0052cc;
-      font-weight: 900;
-      font-size: 16px;
-      text-transform: uppercase;
     }
   </style>
 </head>
@@ -408,11 +368,13 @@
   <div id="screen-scan">
     <video id="video-element" playsinline muted></video>
 
+    <!-- Header Teks Atas dengan Background Putih Memanjang -->
     <div class="scan-header-overlay">
       <h2>Arahkan Kamera ke QR Code</h2>
       <p>Pastikan QR Code Terlihat Jelas dan dalam Frame</p>
     </div>
 
+    <!-- Frame Hijau Pemindaian -->
     <div class="scan-frame-wrapper">
       <div class="scan-corner top-left"></div>
       <div class="scan-corner top-right"></div>
@@ -420,6 +382,7 @@
       <div class="scan-corner bottom-right"></div>
     </div>
 
+    <!-- Status Pemindaian Bawah -->
     <div class="scan-footer-overlay">
       <div id="scan-status" class="scan-status">Menghubungkan Kamera...</div>
     </div>
@@ -469,9 +432,9 @@
 
   <!-- LAYAR SELESAI -->
   <div id="screen-thanks" class="screen">
-    <div id="thanks-msg-box" class="empty-msg">
+    <div class="empty-msg">
       <h2>TERIMA KASIH!</h2>
-      <div id="thanks-text" class="msg-details"></div>
+      <p style="margin-top: 6px;">Pilihan Anda Telah Berhasil Disimpan.</p>
     </div>
     <div class="action-bar">
       <button class="btn btn-blue" style="max-width:100%; width:100%;" onclick="resetToScan()">KEMBALI KE LAYAR SCAN</button>
@@ -480,14 +443,11 @@
 
   <script>
     const singleUseQrCodes = [
-      "simopg1", "simopg2", "simopg3",
-      "simopg4", "simopg5", "simopg6",
-      "simopg7", "simopg8", "simopg9", "simopg10",
-      "simopg11", "simopg12", "simopg13",
-      "simopg14", "simopg15", "simopg16", "simopg17",
-      "simopg18", "simopg19", "simopg20"
+      "pemsimpilkadessmg1", "pemsimpilkadessmg2", "pemsimpilkadessmg3",
+      "pemsimpilkadessmg4", "pemsimpilkadessmg5", "pemsimpilkadessmg6",
+      "pemsimpilkadessmg7", "pemsimpilkadessmg8", "pemsimpilkadessmg9", "pemsimpilkadessmg10"
     ];
-    const unlimitedQrCodes = ["simulasiopang1", "simulasiopang2"];
+    const unlimitedQrCodes = ["TESTER-REPEATED", "PANITIA-DEMO"];
     let usedQrCodes = new Set();
     let currentActiveUser = "";
 
@@ -603,14 +563,16 @@
       
       Array.from(selectedCandidates).sort().forEach(id => {
         container.innerHTML += `
-          <div class="candidate-card selected">
+          <div class="candidate-card">
             <div class="candidate-img-wrapper">
               <img src="${candidatesData[id].img}">
             </div>
           </div>`;
       });
 
+      // Sembunyikan header merah di layar konfirmasi
       document.getElementById("main-header").style.display = "none";
+
       document.getElementById("screen-vote").classList.remove("active");
       document.getElementById("screen-confirm").classList.add("active");
     }
@@ -619,7 +581,9 @@
       selectedCandidates.clear();
       document.querySelectorAll('#screen-vote .candidate-card').forEach(c => c.classList.remove('selected'));
       
+      // Tampilkan kembali header merah saat kembali ke layar pemilihan
       document.getElementById("main-header").style.display = "block";
+
       document.getElementById("screen-confirm").classList.remove("active");
       document.getElementById("screen-vote").classList.add("active");
     }
@@ -628,18 +592,6 @@
       if (currentActiveUser && !unlimitedQrCodes.includes(currentActiveUser)) {
         usedQrCodes.add(currentActiveUser);
       }
-
-      const msgBox = document.getElementById("thanks-msg-box");
-      const textContainer = document.getElementById("thanks-text");
-
-      if (selectedCandidates.size === 1) {
-        msgBox.className = "empty-msg";
-        textContainer.innerHTML = `Pilihan yang tepat, Anda telah memilih <span class="candidate-name">HAJI ALWI JABARUDIN</span> calon pemimpin yang luar biasa demi kemajuan Desa Sumurgede.`;
-      } else {
-        msgBox.className = "empty-msg warning-msg";
-        textContainer.innerHTML = `Anda telah salah memilih lebih dari satu.`;
-      }
-
       document.getElementById("screen-confirm").classList.remove("active");
       document.getElementById("screen-thanks").classList.add("active");
     }
