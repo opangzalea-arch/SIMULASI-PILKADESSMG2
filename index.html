@@ -501,9 +501,16 @@
     let selectedCandidates = new Set();
 
     let video = document.getElementById("video-element");
-    let canvasElement = document.createElement("canvas");
-    let canvas = canvasElement.getContext("2d");
-    let scanning = false;
+let canvasElement = document.createElement("canvas");
+
+let canvas = canvasElement.getContext("2d", {
+    willReadFrequently: true
+});
+
+let scanning = false;
+let lastScanTime = 0;
+const SCAN_INTERVAL = 100;
+const MAX_SCAN_WIDTH = 960;
 
     function startCamera() {
       scanning = true;
@@ -511,20 +518,43 @@
       status.className = "scan-status";
       status.innerText = "Mencari Kamera...";
 
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      navigator.mediaDevices.getUserMedia({
+    video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30, max: 30 }
+    }
+})
         .then(function(stream) {
-          video.srcObject = stream;
-          video.setAttribute("playsinline", true);
-          video.play();
+    video.srcObject = stream;
+
+    const track = stream.getVideoTracks()[0];
+    if (track && track.applyConstraints) {
+        track.applyConstraints({
+            advanced: [{ focusMode: "continuous" }]
+        }).catch(() => {});
+    }
+
+    video.setAttribute("playsinline", true);
+    video.play();
           status.innerText = "Siap memindai QR Code...";
           requestAnimationFrame(tick);
         })
         .catch(function(err) {
           navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-              video.srcObject = stream;
-              video.setAttribute("playsinline", true);
-              video.play();
+.then(function(stream) {
+    video.srcObject = stream;
+
+    const track = stream.getVideoTracks()[0];
+    if (track && track.applyConstraints) {
+        track.applyConstraints({
+            advanced: [{ focusMode: "continuous" }]
+        }).catch(() => {});
+    }
+
+    video.setAttribute("playsinline", true);
+    video.play();
               status.innerText = "Siap memindai QR Code...";
               requestAnimationFrame(tick);
             })
@@ -543,23 +573,71 @@
     }
 
     function tick() {
-      if (!scanning) return;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvasElement.height = video.videoHeight;
-        canvasElement.width = video.videoWidth;
-        canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
-        let imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-        
-        if (typeof jsQR !== "undefined") {
-          let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-          if (code) {
-            handleQrDetected(code.data);
-            return;
-          }
+    if (!scanning) return;
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+
+        const now = performance.now();
+
+        // Batasi proses pemindaian agar tablet tidak terlalu berat
+        if (now - lastScanTime >= SCAN_INTERVAL) {
+
+            lastScanTime = now;
+
+            const originalWidth = video.videoWidth;
+            const originalHeight = video.videoHeight;
+
+            if (originalWidth && originalHeight) {
+
+                // Sesuaikan resolusi pembacaan QR
+                const scale = Math.min(
+                    1,
+                    MAX_SCAN_WIDTH / originalWidth
+                );
+
+                const scanWidth = Math.round(originalWidth * scale);
+                const scanHeight = Math.round(originalHeight * scale);
+
+                canvasElement.width = scanWidth;
+                canvasElement.height = scanHeight;
+
+                canvas.drawImage(
+                    video,
+                    0,
+                    0,
+                    scanWidth,
+                    scanHeight
+                );
+
+                const imageData = canvas.getImageData(
+                    0,
+                    0,
+                    scanWidth,
+                    scanHeight
+                );
+
+                if (typeof jsQR !== "undefined") {
+
+                    let code = jsQR(
+                        imageData.data,
+                        imageData.width,
+                        imageData.height,
+                        {
+                            inversionAttempts: "dontInvert"
+                        }
+                    );
+
+                    if (code && code.data) {
+                        handleQrDetected(code.data);
+                        return;
+                    }
+                }
+            }
         }
-      }
-      requestAnimationFrame(tick);
     }
+
+    requestAnimationFrame(tick);
+}
 
     function handleQrDetected(qrText) {
       qrText = qrText.trim();
